@@ -210,6 +210,43 @@ void opcodeList(){ //opcode Hash Table의 내용을 출력해줌
 		printf("\n");
 	}
 }
+
+void directory(){ //현재 디렉터리에 있는 파일들을 출력한다
+	DIR* dp = NULL;
+	struct dirent *ent;
+	struct stat buf;
+	dp = opendir("./");
+	int printcnt = 0; // 적절히 엔터를 넣어주기 위한 변수
+	if(dp!= NULL){
+		printf("\t");
+		while((ent = readdir(dp)) != NULL){
+			lstat(ent->d_name, &buf);
+			if(S_ISDIR(buf.st_mode)){
+				printf("%s/\t",ent->d_name);
+			}
+			else if(S_ISREG(buf.st_mode)){
+				if(buf.st_mode & 01001001)
+					printf("%10s*\t",ent->d_name);
+				else
+					printf("%10s\t",ent->d_name);
+
+			}
+			printcnt++;
+			if(printcnt==3){
+				printf("\n\t");
+				printcnt=0;
+			}
+		}
+		printf("\n");
+		closedir(dp);
+	}
+	else{
+		perror("");
+//		return EXIT_FAILUARE;
+	}
+
+
+}
 int main(void){
 	char input[50]; //사용자로 부터의 입력
 	for(int i=0;i<16;i++){
@@ -228,18 +265,21 @@ int main(void){
 		//history 혹은 h 입력 시 히스토리 출력
 		if(strcmp(input,"h") * strcmp(input,"history")==0) print_history(input);
 		else history(input);
+		
+		
+
 //		printf("\n%s\n",input);
 
 	}
 
 	make_hash();
-	opcodeList();
+//	opcodeList();
 	printf("\n");
-	mnemonic("ADD");
+//	mnemonic("LDB");
 //	memory[0][0] = 255;
 //	printf("hehe %X\n",memory[0][0]);
 
 //	help();
-
+	directory();	
 	return 0;
 }
