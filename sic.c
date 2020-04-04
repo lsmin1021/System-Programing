@@ -146,12 +146,11 @@ int put_hash(char* code, char* instruction, char* format){ //해시 테이블에
 	/* 기준 다시 정하자아아ㅏㅇ아아아 TODO*/	
 	int key_num, len_inst;
 	len_inst = strlen(instruction);
-	if(len_inst >= 3 )
-		key_num = (instruction[len_inst-1]+instruction[len_inst-2])%19;
-	else if(len_inst == 2)
-		key_num = (instruction[len_inst-1] + instruction[len_inst-2])%21;
-	else
-		key_num = instruction[len_inst-1]%19;
+
+	//instruction의 가운데 문자 아스키값 + 문자열 길이를 KEY로 나눈 나머지값을
+	//KEY_num으로 설정
+	key_num = (instruction[len_inst/2]+len_inst)%KEY;
+	
 	if(key_num >= 20)
 		key_num -= 20;
 	//새로운 노드 생성
@@ -182,79 +181,32 @@ void make_hash(){
 	
 	init_hash(); //맨 처음 hash table 초기화
 	FILE* fp = fopen("opcode.txt","r"); //파일 열기
+	
 	char line[31];
-	//맨 첫줄 읽어오기
-	//char* temp = fgets(line,30,fp);
+	
 	// 각 줄마다 정보를 저장해줄 변수들
 	char code[3];
 	char instruction[7]; 	
 	char format[4];
-	//printf("%ste\n",temp);
-//	printf("....");
-	/*
-	while(temp != NULL){ //파일로부터 한 줄씩 읽어보기
-		line[strlen(line)-1]=0;
-		//opCode 저장
-		code[0] = line[0]; 
-		code[1] = line[1];
-	//	printf(">>%s",code);	
-		int flag = 0, i;
-		int index = 0;
-		
-		// instruction 저장
-		for(i=2;;i++){
-			if(line[i] <'A' || line[i]>'Z' ) {
-				if(flag==0) continue;
-				else break;
-			}
-			flag=1;
-			instruction[index++] = line[i];			
-		}
-		
-		flag = 0;
-		index = 0;
-		//format 형태 저장
-		for(;;i++){
-			if((line[i] <'1' || line[i] >'4') && line[i]!='/') {
-				if (flag == 0)continue;
-				else break;
-			}
-			flag = 1; //숫자가 들어오면 flag를 세워서 거기부터 저장
-			format[index++] = line[i];
-		}
-		//읽은 정보를 hash table에 넣는다
-		put_hash(code, instruction, format);
-		//다음 줄 읽어오기
-		temp = fgets(line,30,fp);
-		
-
-		//변수 초기화
-		code[0] = 0;
-		code[1] = 0;
-		for(int i=0;i<7;i++)
-			instruction[i] = 0;
-		for(int i=0;i<4;i++)
-			format[i] = 0;
-	}*/
 	
-	int flag1=0, flag2=0, flag3=0;
+	int op_flag=0, in_flag=0;//값을 저장하기 위해 flag
 	while(fscanf(fp,"%s",line) != EOF){
-		if(flag1 == 0){
+		if(op_flag == 0){
 			strcpy(code, line);
-			flag1 = 1;
+			op_flag = 1;
 		}
-		else if(flag2 == 0){
+		else if(in_flag == 0){
 			strcpy(instruction, line);
-			flag2 = 1;
+			in_flag = 1;
 		}
 		else{
 			strcpy(format, line);
 			put_hash(code,instruction,format);
-			flag1 = 0; flag2=0;
+			op_flag = 0; in_flag=0;
 		}
 	}
 	
-	
+	//파일닫기
 	fclose(fp);
 
 }
@@ -265,19 +217,17 @@ void make_hash(){
  * */
 int mnemonic(char str[]){ //instruction에 해당하는 opCode 출력
 	int flag = -1; // opCode를 찾았으면 1로 바꾸는 flag
-	for(int i=0;i<20;i++){
-		HASH* temp = opcode_table[i].link;
-		while(temp!= NULL){
-			if(strcmp(temp->instruction, str)==0){
-				printf("opcode is %02X\n",temp->opCode);
-				flag = 1; break;
-			}
-			temp = temp->link;
+	int key = (str[strlen(str)/2]+strlen(str))%KEY; //key값 계산
+	HASH* temp = opcode_table[key].link;
+	while(temp!= NULL){
+		if(strcmp(temp->instruction, str)==0){
+			printf("opcode is %02X\n",temp->opCode);
+			flag = 1; break;
 		}
-		if(flag == 1) break;
+		temp = temp->link;
 	}
 	if(flag == -1)
-		printf("there is no %s in opcodeList\n",str); //Hash 테이블에 없는 경우 에러 처리
+		printf("error! There is no %s in opcodeList\n",str); //Hash 테이블에 없는 경우 에러 처리
 	return flag; //정상적으로 찾은 경우 1 리턴, 아닌 경우 0 리턴
 }
 void opcodeList(){ //opcode Hash Table의 내용을 출력해줌
@@ -310,7 +260,7 @@ void directory(){ //현재 디렉토리에 있는 파일들을 출력한다
 		while((ent = readdir(dp)) != NULL){
 			lstat(ent->d_name, &buf);
 			if(S_ISDIR(buf.st_mode)){
-				printf("%s/\t",ent->d_name);
+				printf("%10s/\t",ent->d_name);
 			}
 			else if(S_ISREG(buf.st_mode)){
 				if(buf.st_mode & 01001001)
@@ -358,10 +308,12 @@ int dump_print(char start[], char end[], int option){
 	if(option == 1){ //dump만 입력한 경우
 		i_start = mem_addr;
 		i_end = mem_addr + 160 - 1;
-
+		
 		mem_addr = mem_addr + 160;
 		if( mem_addr >= MAX_MEMORY) //끝까지 간 경우 address를 다시 0으로 초기화
 			mem_addr = 0;
+		if(i_end >= MAX_MEMORY)
+			i_end = MAX_MEMORY-1;
 	}
 	else if(option == 2){ //dump start
 		if(is_hex(start) == 0) //start 값이 16진수가 아니면 에러. 0 리턴
@@ -393,7 +345,6 @@ int dump_print(char start[], char end[], int option){
 //	int cnt = i_end-i_start + 1, index = i_start;
 	int flag = 0;
 	int line_s, line_e; //해당 줄에 시작 인덱스와 끝 인덱스
-	int line_ss;
 
 	// 맨 처음 주소 출력
 	printf("%05X ",(i_start/16)*16);
@@ -513,7 +464,8 @@ int main(void){
 			valid_flag = 1;
 			continue;
 		}
-		if(strcmp(input,"help") == 0) {
+		//help 혹은 h 입력 시 명령어 목록 출력
+		if(strcmp(input,"h") * strcmp(input,"help") == 0) {
 			help(); 	
 			valid_flag = 1;
 		}
@@ -531,15 +483,18 @@ int main(void){
 			mem_reset();
 			valid_flag = 1;
 		}
-		//인자가 여러개인 경우 처리
+		
+		//인자가 하나인 경우 history에 넣고 continue
 		if(valid_flag == 1){
 			history(input);
 			continue;
 		}
 
+		//인자가 여러개인 경우 처리
 		char *inArr[10] = {NULL, };
 		int index = 0;
 		char tmpinput[30];
+
 		strcpy(tmpinput, input); //tmpinput에 input값 임시 저장. history를 위해서
 		char *ptr = strtok(input," ");
 		while(ptr != NULL){
@@ -548,10 +503,13 @@ int main(void){
 			ptr = strtok(NULL, " ");
 		}
 	
-		//opcodelist 입력 시 list 출력
+		//du 혹은 dump 입력 시 메로리 정보 출력
 		if(strcmp(inArr[0], "du") * strcmp(inArr[0], "dump") == 0 && index <= 3){
-			if(index == 3)
+			//',' 입력 안했을 경우 대비
+			if(index == 3 && (inArr[1])[strlen(inArr[1])-1] == ','){
 				(inArr[1])[strlen(inArr[1])-1] = '\0';
+				printf("요기!\n");
+				}
 			valid_flag = dump_print(inArr[1],inArr[2], index);	
 		}
 		if(strcmp(inArr[0], "f") * strcmp(inArr[0],"fill")==0 && index == 4){	
@@ -571,13 +529,6 @@ int main(void){
 			history(tmpinput);
 		else if(valid_flag == 0)
 			printf("error! invalid command\n");
-		/* TODO 명령어 처리, 에러처리
-		 * dump, edit, fill, reset
-		 * opcode mnemonic
-		 * dir 형식 정리
-		 * 변수 이름 바꾸기
-		 *
-		 * */
 
 
 	}
