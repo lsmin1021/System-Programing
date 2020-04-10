@@ -26,7 +26,7 @@
 //history를 저장하기 위한 구조체
 typedef struct HISTORY_{
 	int num;
-	char command_name[LEN_COMMAND];
+	char command_name[50];
 	struct HISTORY_* link;
 }HISTORY;
 
@@ -58,6 +58,7 @@ void directory();
 //history func
 int history(char input[]);
 void print_history(char input[]);
+void free_history();
 
 //opcode hash table
 void init_hash();
@@ -65,6 +66,7 @@ int put_hash(char* code, char *instruction, char* format);
 void make_hash();
 int mnemonic(char str[]);
 void opcodeList();
+void free_hash();
 
 //memory dump
 void mem_reset();

@@ -67,6 +67,18 @@ void print_history(char input[]){ //명령어 기록 출력
 	return;
 }
 
+void free_history(){ //history의 linked list를 free해줌
+
+	HISTORY *temp = h_head;
+	HISTORY *del;
+	while(temp != NULL){
+		del = temp;
+		temp = temp -> link;
+		free(del);
+	}
+
+}
+
 /**
  * 16진수 변환 관련 함수들
  */
@@ -82,8 +94,11 @@ int hex_to_dec(char hex[]){ //16진수를 10진수로 바꿔주는 함수
 		else if('A' <= ch && ch <= 'F'){
 			temp = ch - ('A'-10);
 		}
-		else 
+		else if('a' <= ch && ch <= 'f')
 			temp = ch - ('a' -10);
+		else
+			return -1; //잘못된 값이 들어온 경우 -1 리턴
+		
 		num += temp * mul;
 		mul *= 16;
 	}
@@ -150,17 +165,23 @@ void directory(){ //현재 디렉토리에 있는 파일들을 출력한다
 //		return EXIT_FAILUARE;
 	}
 }
-	
+/*
+* 동적 할당한 메모리들을 free 해줌
+* */
+void free_memory(){
+	free_hash(); //hash table free
+	free_history(); //history 내역 free
+}	
 int main(void){
-	char input[LEN_COMMAND]; //사용자로 부터의 입력
-	mem_reset();	
+	char input[50]; //사용자로 부터의 입력
+	mem_reset();
 	make_hash();
 	int valid_flag;
-	while(1){
+	while(1){ //종료 시 까지 무한 반복
 		printf("sicsim> "); //입력 프롬프트 상태
 		if(fgets(input,50,stdin)==NULL)
 			break;//입력
-		if(strlen(input) == 1) { //엔터만 입력 시 continue
+		if(strlen(input) == 1 || input[0] == ' ') { //엔터만 입력 시 continue
 			continue;
 		}
 		input[strlen(input)-1]=0; //입력의 마지막 엔터 값을 null 값으로 변경
@@ -220,25 +241,28 @@ int main(void){
 			}
 			valid_flag = dump_print(inArr[1],inArr[2], index);	
 		}
+		//f 또는 fill 입력 시 start 부터 end 까지 value 값으로 채움
 		if(strcmp(inArr[0], "f") * strcmp(inArr[0],"fill")==0 && index == 4){	
 			(inArr[1])[strlen(inArr[1])-1] = '\0';
 			(inArr[2])[strlen(inArr[2])-1] = '\0';
 			valid_flag = mem_fill(inArr[1], inArr[2], inArr[3]);
 		}
+		//e 또는 edit 입력 시 주소에 해당ㅇ하는 값을 value로 바꿈
 		if(strcmp(inArr[0],"e") * strcmp(inArr[0],"edit") == 0 && index == 3){
 			(inArr[1])[strlen(inArr[1])-1] = '\0';
 			valid_flag = mem_edit(inArr[1], inArr[2]);
 		}
+		//opcode 입력 시 mnemonic에 해당하는 opcode 출력
 		if(strcmp(inArr[0], "opcode") == 0 && index == 2){
 			valid_flag = mnemonic(inArr[1]);	
 		}
 
 		if(valid_flag == 1) //valid한 명령어가 들어온 경우 history에 저장
 			history(tmpinput);
-		else if(valid_flag == 0)
+		else if(valid_flag == 0) //invalid한 경우 예외 처리
 			printf("error! invalid command\n");
 
 	}
-
+	free_memory();
 	return 0;
 }

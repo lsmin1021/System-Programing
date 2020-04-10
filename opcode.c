@@ -26,6 +26,9 @@ void init_hash(){ //해시 테이블 초기화해주는 함수
 }
 int put_hash(char* code, char* instruction, char* format){ //해시 테이블에 넣기
 	int code_num=0;
+	
+	if(is_hex(code) == 0) //code 값이 16진수가 아닌 경우 예외 처리
+		return 0;
 	code_num = hex_to_dec(code);
 	
 	// key_num 설정 하기
@@ -126,5 +129,19 @@ void opcodeList(){ //opcode Hash Table의 내용을 출력해줌
 		}
 		printf("\n");
 	}
+}
+void free_hash(){ //hash table의 메모리를 free해줌
+	for(int i=0;i<20;i++){
+		HASH *temp = opcode_table[i].link;
+		HASH *del;
+		while(temp != NULL){
+			del = temp;
+			temp = temp->link;			
+			free(del);
+		}
+	}	
+	
+	free(opcode_table);
+
 }
 
