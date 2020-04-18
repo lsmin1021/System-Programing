@@ -14,7 +14,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-
+#define CNT_COMMAND 13 //명령어 개수
 #define LEN_COMMAND 30 //명령어 길이
 #define KEY 19 //hash 생성 시 사용할 KEY 값
 #define MAX_MEMORY 1048576 //메모리 크기
@@ -43,6 +43,42 @@ typedef struct HASHLIST_{
 	HASH* link;
 }HASHLIST;
 
+HASHLIST* opcode_table;
+
+
+//asm 코드의 각 줄의 정보를 저장하는 구조체
+typedef struct LINE_{
+	char comment[50]; //주석 이면 저장. 다른건 다 0 혹은 NULL로 처리
+	int line; //줄 번호 
+	int loc; //주소 저장
+	
+	char label[10];
+	char str[10];
+	int opCode; //str이 mnmonic이면 opcode, 아니면 -1 저장
+	int format; //format이 뭔지 저장
+
+	char operand[15];
+	char operand2[10]; //operand가 2개인 경우 사용
+	int indexed; //indexed이면 1, 아니면 0
+	int addressing; //addressing mode저장. 
+	//0이면 SIC, 1이면 simle, 2면 immediate, 3이면 inderect
+	
+	struct LINE_* link; //다음 줄을 가리키는 link
+}LINE;
+//asm 파일의 정보를 저장하는 line의 헤드역할
+typedef struct ASM_{
+	char name[20]; //프로그램 이름
+	int start; //시작 메모리 주소
+	int end; //끝 메모리 주소 (길이 구하기 위해)
+	LINE* link;
+}ASM;
+
+typedef struct SYMBOL_{
+	char symbol[10];
+	int loc; //location
+	struct SYMBOL_* link;
+}SYMBOL;
+SYMBOL* symbol_head;
 
 //fundamental function
 int hex_to_dec(char hex[]);
@@ -54,6 +90,7 @@ void help();
 
 //directory func
 void directory();
+int type_func(char* filename);
 
 //history func
 int history(char input[]);
@@ -73,3 +110,18 @@ void mem_reset();
 int dump_print(char start[], char end[], int option);
 int mem_edit(char address[], char value[]);
 int mem_fill(char start[], char end[], char value[]);
+
+//assembler
+
+int is_directive(char str[]);
+int is_mnemonic(char str[]);
+int is_valid_inst(char str[]);
+int find_format(char *str);
+int put_symbol(char label[], int loc);
+int manage_line(char* line, int lineCnt, int *loc);
+int read_file(char *filename);
+void make_lst();
+
+//test func
+void print_asm();
+

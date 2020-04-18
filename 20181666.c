@@ -12,16 +12,17 @@
 
 #include "20181666.h"
 
-char command[10][LEN_COMMAND]={"h[elp]","d[ir]","q[uit]","hi[story]",
+char command[CNT_COMMAND][LEN_COMMAND]={"h[elp]","d[ir]","q[uit]","hi[story]",
 	"du[mp] [start, end]","e[dit] address, value", "f[ill] start, end, value",
-	"reset", "opcode mnemonic", "opcodelist"}; //명령어 목록
+	"reset", "opcode mnemonic", "opcodelist",
+	"assemble filename", "type filename", "symbol"}; //명령어 목록
 
 
 HISTORY* h_head = NULL; //히스토리를 저장하는 링크드리스트 헤더
 int history_num = 0 ; //현재 히스토리에 저장된 개수
 
 void help(){ //명령어 목록 출력
-	for(int i=0;i<10;i++){
+	for(int i=0;i< CNT_COMMAND ;i++){
 		printf("%s\n",command[i]);
 	}
 	
@@ -166,6 +167,27 @@ void directory(){ //현재 디렉토리에 있는 파일들을 출력한다
 	}
 }
 /*
+ * filename을 읽어 해당 파일의 내용 출력
+ *
+ * 해당 파일이 없는 경우 에러 메세지
+ */
+int type_func(char* filename){
+	FILE *fp = fopen(filename, "r");//filename에 해당하는 파일 열기
+	if( fp == NULL){ //파일이 없는 경우 에러처리
+		printf("error! There is no %s in this directory\n", filename);
+		return -1;
+	}
+
+	char temp[10000];
+	while( fgets(temp,10000,fp) != NULL){
+		printf("%s",temp);
+	}
+
+	fclose(fp); //파일 닫기
+	return 1;
+
+}
+/*
 * 동적 할당한 메모리들을 free 해줌
 * */
 void free_memory(){
@@ -257,12 +279,23 @@ int main(void){
 			valid_flag = mnemonic(inArr[1]);	
 		}
 
+		//type filename 입력 시 file의 내용 출력
+		if(strcmp(inArr[0], "type") == 0 && index == 2){
+			valid_flag = type_func(inArr[1]);
+		}
+		
+
 		if(valid_flag == 1) //valid한 명령어가 들어온 경우 history에 저장
 			history(tmpinput);
 		else if(valid_flag == 0) //invalid한 경우 예외 처리
 			printf("error! invalid command\n");
 
 	}
+	//FILE *fp = fopen("aa","r");
+	make_lst();
+	read_file("2_5.asm");
+	print_asm();
 	free_memory();
+	
 	return 0;
 }

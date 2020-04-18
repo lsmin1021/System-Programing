@@ -9,7 +9,7 @@
 #include "20181666.h"
 
 
-HASHLIST* opcode_table = NULL; //opcode list를 위한 링크드 리스트 헤드
+//HASHLIST* opcode_table = NULL; //opcode list를 위한 링크드 리스트 헤드
 
 
 /*
@@ -18,6 +18,7 @@ HASHLIST* opcode_table = NULL; //opcode list를 위한 링크드 리스트 헤�
  * init_hash, put_hash, make_hash
  * */
 void init_hash(){ //해시 테이블 초기화해주는 함수
+	opcode_table = NULL;
 	opcode_table = (HASHLIST*)malloc(sizeof(HASHLIST)*20);
 	for(int i=0;i<20;i++){
 		opcode_table[i].hash_num = i;
@@ -114,7 +115,7 @@ int mnemonic(char str[]){ //instruction에 해당하는 opCode 출력
 	}
 	if(flag == -1)
 		printf("error! There is no %s in opcodeList\n",str); //Hash 테이블에 없는 경우 에러 처리
-	return flag; //정상적으로 찾은 경우 1 리턴, 아닌 경우 0 리턴
+	return flag; //정상적으로 찾은 경우 1 리턴, 아닌 경우 -1 리턴
 }
 void opcodeList(){ //opcode Hash Table의 내용을 출력해줌
 	for(int i=0;i<20;i++){
