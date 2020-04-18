@@ -294,7 +294,11 @@ int main(void){
 	//FILE *fp = fopen("aa","r");
 	make_lst();
 	read_file("2_5.asm");
-	print_asm();
+
+	make_objectcode();
+	print_asm2();
+
+	print_symbol();
 	free_memory();
 	
 	return 0;

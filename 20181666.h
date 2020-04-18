@@ -55,14 +55,14 @@ typedef struct LINE_{
 	char label[10];
 	char str[10];
 	int opCode; //str이 mnmonic이면 opcode, 아니면 -1 저장
-	int format; //format이 뭔지 저장
-
+	int format; //format이 뭔지 저장(상수인 경우 0)
+	
 	char operand[15];
 	char operand2[10]; //operand가 2개인 경우 사용
 	int indexed; //indexed이면 1, 아니면 0
 	int addressing; //addressing mode저장. 
 	//0이면 SIC, 1이면 simle, 2면 immediate, 3이면 inderect
-	
+	char obj[9];	
 	struct LINE_* link; //다음 줄을 가리키는 link
 }LINE;
 //asm 파일의 정보를 저장하는 line의 헤드역할
@@ -79,6 +79,19 @@ typedef struct SYMBOL_{
 	struct SYMBOL_* link;
 }SYMBOL;
 SYMBOL* symbol_head;
+
+enum Register{ //register 번호 정의
+	A = 0,
+	X = 1,
+	L = 2,
+	B = 3,
+	S = 4,
+	T = 5,
+	F = 6,
+	PC = 8,
+	SW = 9
+};
+
 
 //fundamental function
 int hex_to_dec(char hex[]);
@@ -120,8 +133,13 @@ int find_format(char *str);
 int put_symbol(char label[], int loc);
 int manage_line(char* line, int lineCnt, int *loc);
 int read_file(char *filename);
+
+char* line_objectcode(LINE* node);
+int make_objectcode();
+
 void make_lst();
 
 //test func
 void print_asm();
-
+void print_asm2();
+void print_symbol();
