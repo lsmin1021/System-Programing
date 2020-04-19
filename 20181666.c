@@ -193,16 +193,22 @@ int type_func(char* filename){
 void free_memory(){
 	free_hash(); //hash table free
 	free_history(); //history 내역 free
+	free_symbol(save_symtab);
 }	
 int main(void){
 	char input[50]; //사용자로 부터의 입력
 	mem_reset();
 	make_hash();
 	int valid_flag;
+	symbol_flag = 0; //symbol이 제대로 생성되면 1
+	save_symtab = NULL;
+//	asm_head = NULL;
 	while(1){ //종료 시 까지 무한 반복
 		printf("sicsim> "); //입력 프롬프트 상태
-		if(fgets(input,50,stdin)==NULL)
+		if(fgets(input,50,stdin)==NULL){
 			break;//입력
+
+		}
 		if(strlen(input) == 1 || input[0] == ' ') { //엔터만 입력 시 continue
 			continue;
 		}
@@ -235,7 +241,17 @@ int main(void){
 			mem_reset();
 			valid_flag = 1;
 		}
-		
+		if(strcmp(input, "symbol") == 0){
+			if(symbol_flag == 1){
+			print_symbol();
+			valid_flag = 1;
+			}
+			else{
+				printf("error! no symbol table\n");
+				continue;
+			}
+		}
+
 		//인자가 하나인 경우 history에 넣고 continue
 		if(valid_flag == 1){
 			history(input);
@@ -283,22 +299,37 @@ int main(void){
 		if(strcmp(inArr[0], "type") == 0 && index == 2){
 			valid_flag = type_func(inArr[1]);
 		}
+	
+		//assemble filename 입력 시 file을 assemble
+		if(strcmp(inArr[0], "assemble") == 0 && index == 2){
+			valid_flag = read_file(inArr[1]);
+			if(valid_flag == 1){
+				valid_flag = make_objectcode(); //object code 생성
+				if(valid_flag == 1){
+					makefile_lst(inArr[1]);
+					makefile_obj(inArr[1]);
+					symbol_flag = 1;
+					save_symbol(); //symbol table 저장
+					free_symbol(symbol_head);
+					free_asm();
+					printf("Successfully assemble %s.\n",inArr[1]);
+				}
+			}
+			else{
+				free_symbol(symbol_head);
+			}
+		}
 		
-
 		if(valid_flag == 1) //valid한 명령어가 들어온 경우 history에 저장
 			history(tmpinput);
 		else if(valid_flag == 0) //invalid한 경우 예외 처리
 			printf("error! invalid command\n");
 
 	}
-	//FILE *fp = fopen("aa","r");
-	make_lst();
-	read_file("2_5.asm");
 
-	make_objectcode();
-	print_asm2();
+	
 
-	print_symbol();
+	
 	free_memory();
 	
 	return 0;

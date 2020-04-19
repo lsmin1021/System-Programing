@@ -61,6 +61,8 @@ typedef struct LINE_{
 	char operand2[10]; //operand가 2개인 경우 사용
 	int indexed; //indexed이면 1, 아니면 0
 	int addressing; //addressing mode저장. 
+
+	int modified; //modify 해야하면 1 아니면 0
 	//0이면 SIC, 1이면 simle, 2면 immediate, 3이면 inderect
 	char obj[9];	
 	struct LINE_* link; //다음 줄을 가리키는 link
@@ -70,8 +72,13 @@ typedef struct ASM_{
 	char name[20]; //프로그램 이름
 	int start; //시작 메모리 주소
 	int end; //끝 메모리 주소 (길이 구하기 위해)
+	int modify_cnt;
 	LINE* link;
 }ASM;
+ASM* asm_head;
+int base, pc; //base와 pc를 저장하기 위한 변수
+
+int* modify; //modification을 해야하는 location 저장하는 배열
 
 typedef struct SYMBOL_{
 	char symbol[10];
@@ -79,18 +86,8 @@ typedef struct SYMBOL_{
 	struct SYMBOL_* link;
 }SYMBOL;
 SYMBOL* symbol_head;
-
-enum Register{ //register 번호 정의
-	A = 0,
-	X = 1,
-	L = 2,
-	B = 3,
-	S = 4,
-	T = 5,
-	F = 6,
-	PC = 8,
-	SW = 9
-};
+SYMBOL* save_symtab;
+int symbol_flag;
 
 
 //fundamental function
@@ -134,12 +131,20 @@ int put_symbol(char label[], int loc);
 int manage_line(char* line, int lineCnt, int *loc);
 int read_file(char *filename);
 
+int reg_num(char* reg);
+int find_sym_loc(char* symbol);
+
 char* line_objectcode(LINE* node);
 int make_objectcode();
 
+void makefile_lst(char* filename);
+void makefile_obj(char* filename);
+
 void make_lst();
 
-//test func
-void print_asm();
-void print_asm2();
+void free_asm();
+
+//test function
+void free_symbol(SYMBOL* node);
+void save_symbol();
 void print_symbol();

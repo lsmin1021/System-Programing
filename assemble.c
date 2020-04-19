@@ -3,12 +3,6 @@
 char directives[6][6] =
 	{"START", "END", "BYTE",
 	"WORD", "RESB", "RESW"}; //assembler directives의 목록
-ASM *asm_head = NULL;
-
-
-
-
-int base, pc;
 
 //str이 directives이면 1리턴, 아니면 0 리턴
 int is_directive(char str[]){
@@ -33,7 +27,7 @@ int is_mnemonic(char str[]){
 		return temp->opCode;
 	else return -1;
 }
-//str이 적절한 instruction인지 판단하는 함수 아니면 0 리턴
+//str이 적절한 instruction인지 판단하는 함수 아니면 -1 리턴
 int is_valid_inst(char str[]){
 	if(str[0] == '+'){
 		char dest[10];
@@ -47,7 +41,7 @@ int is_valid_inst(char str[]){
 		return 3; 
 	else if(strcmp(str, "BASE") == 0) //BASE이면 2 return
 		return 2;
-	return 0;
+	return -1;
 }
 //제대로 넣으면 1 리턴, 중복됐거나 오류나면 0 리턴
 int put_symbol(char label[],int loc){
@@ -64,12 +58,12 @@ int put_symbol(char label[],int loc){
 	else{
 		SYMBOL* temp = symbol_head;
 		if(strcmp(temp->symbol, label) == 0){ //맨 처음 중복인 경우
-			printf("error! duplicate symbol\n");
+			printf("error! duplicate symbol \n");
 			return 0;
 		}
 		while(temp->link != NULL){
 			if(strcmp(temp->symbol, label) == 0){//중복
-				printf("error! duplicate symbol\n");
+				printf("error! duplicate symbol ");
 				return 0;
 			}
 			temp = temp->link;
@@ -128,6 +122,7 @@ int manage_line(char* line,int lineCnt, int* loc){
 	new_line->format = -1; //mnemonic인 경우 format
 	new_line->indexed = 0; //mnemonic 중 indexed인 경우 1
 	new_line->addressing = -1; //addressing 모드
+	new_line->modified = 0; //modification 해야하는 것 저장
 	new_line->link = NULL; //다음 노드 link
 
 	if(line[0] == '.') {//코멘트 처리i
@@ -162,7 +157,8 @@ int manage_line(char* line,int lineCnt, int* loc){
 	if(cnt == 1){
 		valid_flag = is_valid_inst(Arr[0]);
 		if(valid_flag == -1){
-			printf("assembly error!\n");
+			printf("error! assembly error at %d line\n",new_line->line);
+			
 			free(new_line);
 			return -1;
 		}
@@ -178,7 +174,7 @@ int manage_line(char* line,int lineCnt, int* loc){
 			}
 			*loc += valid_flag;
 			new_line->format = valid_flag;
-
+			new_line->addressing = 1;
 			if(valid_flag == 4){ //format 4인 경우 + 제거
 				char dest[10];
 				for(int i=0;i<10;i++){
@@ -186,7 +182,7 @@ int manage_line(char* line,int lineCnt, int* loc){
 				}
 				new_line->opCode = is_mnemonic(dest);
 			}
-			else{ //format 4인 경우 modification??? TODO
+			else{ 
 				new_line->opCode = is_mnemonic(Arr[0]);
 			}
 			strcpy(new_line->str, Arr[0]);
@@ -196,7 +192,7 @@ int manage_line(char* line,int lineCnt, int* loc){
 	else if(cnt == 2){ //label 없고 operand 하나인 경우
 		valid_flag = is_valid_inst(Arr[0]);
 		if(valid_flag == -1){
-			printf("assembly error!11\n");
+			printf("error! assembly error at %d line\n",new_line->line);
 			free(new_line);
 			return -1;
 		}
@@ -211,7 +207,7 @@ int manage_line(char* line,int lineCnt, int* loc){
 		if(valid_flag == 1){ //directives인 경우 아마 END만
 			strcpy(new_line->str, Arr[0]); //str에 저장
 			strcpy(new_line->operand, Arr[1]); //operand에 값 저장
-			if(strcmp(Arr[0],"START")==0 && asm_head->start == -1){ //TODO START 처리
+			if(strcmp(Arr[0],"START")==0 && asm_head->start == -1){
 				asm_head->start = hex_to_dec(Arr[1]); //맨 처음 시작 주소 저장
 				*loc = asm_head->start;//location 저장
 				new_line->loc = *loc; //START의 location은 시작주소
@@ -260,7 +256,7 @@ int manage_line(char* line,int lineCnt, int* loc){
 				strncpy(dest, Arr[0]+1, strlen(Arr[0])-1); 
 				new_line->opCode = is_mnemonic(dest);
 			}
-			else{ //format 4인 경우 modification??? TODO
+			else{ 
 				new_line->opCode = is_mnemonic(Arr[0]);
 			}
 			strcpy(new_line->str, Arr[0]);
@@ -275,7 +271,6 @@ int manage_line(char* line,int lineCnt, int* loc){
 				new_line->addressing = 1; //simple addressing
 			}
 			strcpy(new_line->operand, Arr[1]); //operand 저장
-			//sic addressing 인 경우는 없나/..? TODO  확인해보기
 
 
 		}
@@ -298,7 +293,7 @@ int manage_line(char* line,int lineCnt, int* loc){
 			new_line->format = valid_flag;
 			*loc += valid_flag;
 
-			if(Arr[1][0] == '#'){ //imrmediate addressing
+			if(Arr[1][0] == '#'){ //immediate addressing
 				new_line->addressing = 2;
 			}
 			else if(Arr[1][0] == '@'){//indirect addressing
@@ -319,7 +314,7 @@ int manage_line(char* line,int lineCnt, int* loc){
 			//label 처리. symbol list에 label 저장
 			
 			if(valid_flag == -1){
-				printf("assembly error!\n"); //TODO error 메세지
+				printf("error! assembly error at %d line\n",new_line->line); 
 				free(new_line); //error난 경우 free
 				return -1; //제대로 안됐으면 -1 return
 			}
@@ -362,6 +357,9 @@ int manage_line(char* line,int lineCnt, int* loc){
 				strcpy(new_line->label,Arr[0]);
 			}
 			else{
+				printf("at %d line\n", new_line->line);
+				//print_symbol();
+				//printf("===\n");
 				free(new_line); //error난 경우 free
 				return -1; //symbol이 error난 경우 -1 return
 			}
@@ -411,7 +409,7 @@ int manage_line(char* line,int lineCnt, int* loc){
 					strncpy(dest, Arr[1]+1, strlen(Arr[1])-1);
 					new_line->opCode = is_mnemonic(dest);
 				}
-				else{ //format 4인 경우 modification??? TODO
+				else{ 
 					new_line->opCode = is_mnemonic(Arr[1]);
 				}
 				strcpy(new_line->str, Arr[1]);
@@ -426,7 +424,6 @@ int manage_line(char* line,int lineCnt, int* loc){
 					new_line->addressing = 1; //simple addressing
 				}
 				strcpy(new_line->operand, Arr[2]); //operand 저장
-				//sic addressing 인 경우는 없나/..? TODO  확인해보기
 			}
 		}
 	}
@@ -442,7 +439,7 @@ int manage_line(char* line,int lineCnt, int* loc){
 		}
 
 		if(valid_flag == -1){
-			printf("assembly error!\n"); //TODO error 메세지
+			printf("error! assembly error at %d line\n",new_line->line); 
 			free(new_line); //error난 경우 free
 			return -1; //제대로 안됐으면 -1 return
 		}
@@ -471,7 +468,7 @@ int manage_line(char* line,int lineCnt, int* loc){
 				strncpy(dest, Arr[1]+1, strlen(Arr[1])-1);
 				new_line->opCode = is_mnemonic(dest);
 			}
-			else{ //format 4인 경우 modification??? TODO
+			else{ 
 				new_line->opCode = is_mnemonic(Arr[1]);
 			}
 			strcpy(new_line->str, Arr[1]);
@@ -490,7 +487,6 @@ int manage_line(char* line,int lineCnt, int* loc){
 				new_line->addressing = 1; //simple addressing
 			}
 			strcpy(new_line->operand, Arr[2]); //operand 저장
-			//sic addressing 인 경우는 없나/..? TODO  확인해보기
 
 			strcpy(new_line->operand2,Arr[2]);
 
@@ -499,6 +495,18 @@ int manage_line(char* line,int lineCnt, int* loc){
 		}
 	}
 
+	if(new_line->format == 4){ //modification 해야하는 개수 세기
+		if(new_line->addressing == 2){ //immediate 상수 들어올 때 처리
+			if(new_line->operand[1] < '0' || new_line->operand[1] > '9'){
+				asm_head->modify_cnt++;
+				new_line->modified = 1;
+			}			
+		}
+		else{
+			asm_head->modify_cnt++;
+			new_line->modified = 1;
+		}
+	}
 	//link 처리
 	if(asm_head->link == NULL){
 		asm_head->link = new_line;
@@ -518,30 +526,36 @@ int read_file(char* filename){
 
 	FILE *assem = fopen(filename, "r");
 	
+	
 	if (assem == NULL){
 		printf("error! There is no %s\n", filename);
 		return -1;
 	}
 	//asm_head 초기화
+	
 	asm_head = (ASM*)malloc(sizeof(ASM));
+
+
 	strcpy(asm_head->name,"");
 	asm_head->start = -1;
 	asm_head->end = -1; 
 	asm_head->link = NULL;
+	asm_head->modify_cnt = 0;
+	
+
 
 	//symbol_head 초기화
 	symbol_head = NULL;
-
+	
 	
 	char temp[51];
 	int lineCnt = 1;
 	int loc = -1;
-	
+
 	int flag;
 	while(fgets(temp,51,assem) != NULL){ //파일의 끝까지 읽기
 		flag = manage_line(temp,lineCnt, &loc);
 		if(flag == -1){
-			//printf("error!\n");
 			return -1;
 		}
 		else if(flag == 2){
@@ -550,6 +564,7 @@ int read_file(char* filename){
 
 		lineCnt++;
 		strcpy(temp, "");
+		
 	}
 
 
@@ -596,6 +611,7 @@ int find_sym_loc(char* symbol){
 	return -1;
 
 }
+
 //한 줄의 object code 생성해서 return
 char* line_objectcode(LINE* node){
 	char* obj; //object code 저장하는 포인터
@@ -663,10 +679,13 @@ char* line_objectcode(LINE* node){
 			optmp += 1; //i==1인 경우 이진수 처리
 
 		if(node->addressing == -1){ //operand가 없는 경우
-			sprintf(obj,"%X%02X%02X%02X",node->opCode,0,0,0);
+			sprintf(obj,"%02X%02X%02X",optmp,0,0);
 			return obj;
 		}
-		
+		if(strcmp(node->operand, "") == 0){ //operand는 없지만 addressing은 1
+			sprintf(obj,"%02X%02X%02X",optmp,0,0);
+			return obj;
+		}
 		char dest[10];
 		if(node->addressing != 1){
 			for(int i=0;i<10;i++)
@@ -680,8 +699,8 @@ char* line_objectcode(LINE* node){
 		}
 		else{
 			ptr = find_sym_loc(dest);
-			if(ptr == -1){ //symbol이 없을 때 에러 TODO
-				printf("error!! assembly error\n");
+			if(ptr == -1){ 
+				printf("error!! assembly error %dline\n",node->line);
 				return obj;
 			}
 			int flag = 0; //disp가 음수이면 보수 처리를 위해 flag 세움
@@ -754,8 +773,8 @@ char* line_objectcode(LINE* node){
 		}
 		else{
 			ptr = find_sym_loc(dest);
-			if(ptr == -1){ //symbol이 없을 때 에러 TODO
-				printf("error!! assembly error\n");
+			if(ptr == -1){ 
+				printf("error!! assembly error %dline\n",node->loc);
 				return obj;
 			}
 			address = ptr;
@@ -779,13 +798,15 @@ char* line_objectcode(LINE* node){
 int make_objectcode(){
 	LINE* tmp = asm_head->link;
 	
-	//base = asm_head->start;
+	//modification해야하는 location 저장하는 배열 동적 할당
+	modify = (int*)malloc(sizeof(int)*asm_head->modify_cnt);
+	int modify_index = 0;
 	char* obj;
 	obj = (char*)malloc(sizeof(char)*9);
 	pc = asm_head->start;
+	base = -1;
 	while(tmp != NULL){
 		if(strcmp(tmp->str, "END") == 0){ //END이면 종료
-			printf("여기!!\n");
 			break;
 		}
 		obj = (char*)malloc(sizeof(char)*9);
@@ -798,65 +819,240 @@ int make_objectcode(){
 			pc = pctmp->loc;
 		}
 
-
 		if(tmp->format != -1){//-1인 경우 object code 생성 안함
-			
 			obj = line_objectcode(tmp);
 			if(strcmp(obj, "") == 0){ //빈 문자열 error TODO
 				return -1;
 			}
+			if(tmp->modified == 1)
+				modify[modify_index++] = tmp->loc+1;		
+		
 			strcpy(tmp->obj, obj);
 		}
 
 		free(obj);
 		tmp = tmp->link;
 	}
+	if(strcmp(tmp->str,"END")) //맨 끝에 END로 끝나지 않으면 error
+		return -1;
 	return 1;
 }
-void print_asm(){
+//obj 파일을 만드는 함수
+void makefile_lst(char* filename){
+	char lst_filename[30];
+	strcpy(lst_filename,"");
+	strncpy(lst_filename, filename, (int)(strlen(filename)-4));
+	lst_filename[strlen(filename)-4] = '\0';
+	
+	strcat(lst_filename, ".lst");
+	FILE *fp = fopen(lst_filename,"w");
+
 	LINE* tmp = asm_head->link;
 	while(tmp!= NULL){
-		if(strcmp(tmp->comment,"") != 0){
-			printf("%d/%s\n",tmp->format,tmp->comment);
-			
+		if(strcmp(tmp->comment,"")){ //comment 출력
+			fprintf(fp,"%-4d\t    \t%s\n",tmp->line,tmp->comment);
 		}
-		else if(tmp->loc != -1)
-		printf("%d/%d/%04X/%s\t/%s\t/%s\t/%s\n",tmp->format,tmp->addressing,tmp->loc,tmp->label,tmp->str,tmp->operand,tmp->operand2);
-		else
-			printf("%d/%d/\t/%s\t/%s\t/%s\t/%s\t\n",tmp->format,tmp->addressing, tmp->label, tmp->str, tmp->operand,tmp->operand2);
+		else{
+			
+			if(strcmp(tmp->label, "")== 0)
+				strcpy(tmp->label, "    ");
+			
+			if(strcmp(tmp->str, "END") == 0){ //END는 loc 출력 안함
+				fprintf(fp,"%-4d\t%-8s%-8s%s\t\n",tmp->line,tmp->label, tmp->str, tmp->operand);
+			}
+			else if(strcmp(tmp->operand2, "")){ //operand2가 있는 경우
+				char tmp_operand[20];
+				sprintf(tmp_operand, "%s, %s",tmp->operand, tmp->operand2);
+				fprintf(fp,"%-4d\t%04X\t%-8s%-8s%-15s%s\n",tmp->line,tmp->loc,tmp->label,tmp->str,tmp_operand,tmp->obj);
+
+			}
+			else if(tmp->loc != -1){
+				fprintf(fp,"%-4d\t%04X\t%-8s%-8s%-15s%s\n",tmp->line,tmp->loc,tmp->label,tmp->str,tmp->operand,tmp->obj);
+
+
+			}
+			else
+				fprintf(fp,"%-4d\t     \t%-8s%-8s%-15s%s\n",tmp->line, tmp->label, tmp->str, tmp->operand,tmp->obj);
+		}
 		tmp = tmp->link;
+	}
+	fclose(fp);
+
+}
+void makefile_obj(char *filename){
+	char obj_filename[30];
+	strcpy(obj_filename,"");
+	strncpy(obj_filename, filename, strlen(filename)-4);	
+	obj_filename[strlen(filename)-4] = '\0';
+	strcat(obj_filename, ".obj");
+	FILE *fp = fopen(obj_filename,"w");
+
+	//첫줄 출력
+	fprintf(fp,"H%-6s%06X%06X\n",asm_head->name,asm_head->start,asm_head->end-asm_head->start);
+
+	LINE* tmp = asm_head->link;
+	int obj_cnt = 0;
+	int line_start=-1;
+	char objStr[100];
+	char printStr[100];
+
+	strcpy(objStr,"");
+	while(tmp!= NULL){
+		
+		//if(strcmp(tmp->obj, "") == 0){ //object code가 없는 경우
+		if(strcmp(tmp->str,"RESW") * strcmp(tmp->str,"RESB") == 0){
+			if(obj_cnt != 0){
+				sprintf(printStr, "T%06X%02X%s",line_start, (int)(strlen(objStr)/2), objStr);
+				fprintf(fp,"%s\n",printStr);
+				strcpy(objStr, ""); //빈문자열로 초기화
+				obj_cnt = 0;
+				line_start = -1;
+			}
+		}
+		else{
+			if(line_start == -1)
+				line_start = tmp->loc;
+			if(strcmp(tmp->obj, "")){
+				strcat(objStr, tmp->obj);
+				obj_cnt++;
+			}
+			
+			if(strlen(objStr) >= 56){
+				sprintf(printStr, "T%06X%02X%s",line_start, (int)(strlen(objStr)/2), objStr);
+				fprintf(fp,"%s\n",printStr);
+				strcpy(objStr, ""); //빈문자열로 초기화
+				obj_cnt = 0;
+				line_start = -1;
+			}
+
+		}
+		
+		if( strcmp(tmp->str, "END") == 0)
+			break;
+		tmp = tmp->link;
+	}
+	if(strlen(objStr) > 0){
+		sprintf(printStr, "T%06X%02X%s",line_start, (int)(strlen(objStr)/2), objStr);
+		fprintf(fp,"%s\n",printStr);
+	}
+	
+	for(int i = 0; i < asm_head->modify_cnt; i++){
+		fprintf(fp,"M%06X%02X\n", modify[i], 5);
+	}
+	
+	if(strcmp(tmp->str, "END") == 0){
+		fprintf(fp,"E%06X\n",find_sym_loc(tmp->operand));
+
+	}
+
+	fclose(fp);	
+
+}
+
+void save_symbol(){
+	SYMBOL *tmp, *savetmp;
+	savetmp = save_symtab;
+	tmp = symbol_head;
+	while(tmp!= NULL){
+		if(savetmp == NULL){
+			SYMBOL* new_node;
+			new_node = (SYMBOL*)malloc(sizeof(SYMBOL));
+			strcpy(new_node->symbol, tmp->symbol);
+			new_node->loc = tmp->loc;
+			new_node->link = NULL;
+			save_symtab = new_node;
+			savetmp = save_symtab;
+			tmp = tmp->link;
+		}
+		else{
+			SYMBOL* new_node;
+			new_node = (SYMBOL*)malloc(sizeof(SYMBOL));
+			strcpy(new_node->symbol, tmp->symbol);
+			new_node->loc = tmp->loc;
+			new_node->link = NULL;
+			savetmp->link = new_node;
+			tmp = tmp->link;
+			savetmp = savetmp->link;
+		}
 	}
 
 }
-void print_asm2(){
-	LINE* tmp = asm_head->link;
-	while(tmp!= NULL){
-		if(strcmp(tmp->comment,"") != 0){
-			printf("%d/%s\n",tmp->format,tmp->comment);
-			
-		}
-		else if(tmp->loc != -1)
-		printf("%d/%d/%04X/%s\t/%s\t/%s\t/%s/>%s<\n",tmp->format,tmp->addressing,tmp->loc,tmp->label,tmp->str,tmp->operand,tmp->operand2,tmp->obj);
-		else
-			printf("%d/%d/\t/%s\t/%s\t/%s\t/%s\t/>%s<\n",tmp->format,tmp->addressing, tmp->label, tmp->str, tmp->operand,tmp->operand2,tmp->obj);
-		tmp = tmp->link;
-	}
-
-}
-
+/*
+ * symbol 명령어 입력시 실행되는 함수로
+ * symtab의 내용을 출력한다
+*/
 void print_symbol(){
-	SYMBOL* tmp = symbol_head;
+	//정렬을 하기 위해 임시로 사용하는 linked list
+ 	SYMBOL* sort_sym=NULL;
+	SYMBOL *tmp, *savetmp;
+	savetmp = sort_sym;
+	tmp = save_symtab;
+
+	//sort_sym에 save_symtab의 내용 복사
+	while(tmp!= NULL){
+		if(savetmp == NULL){
+			SYMBOL* new_node;
+			new_node = (SYMBOL*)malloc(sizeof(SYMBOL));
+			strcpy(new_node->symbol, tmp->symbol);
+			new_node->loc = tmp->loc;
+			new_node->link = NULL;
+			sort_sym = new_node;
+			savetmp = sort_sym;
+			tmp = tmp->link;
+		}
+		else{
+			SYMBOL* new_node;
+			new_node = (SYMBOL*)malloc(sizeof(SYMBOL));
+			strcpy(new_node->symbol, tmp->symbol);
+			new_node->loc = tmp->loc;
+			new_node->link = NULL;
+			savetmp->link = new_node;
+			tmp = tmp->link;
+			savetmp = savetmp->link;
+		}
+	}
+	
+	//sort_sym를 알파벳 순으로 정렬
+	SYMBOL *sort;
+	sort = sort_sym;
+	SYMBOL *head = sort_sym;
+	while(sort->link != NULL){
+		if(strcmp(sort->symbol, sort->link->symbol) > 0){
+			tmp = sort->link;
+			sort->link = sort->link->link;
+			tmp->link = head;
+			head = sort = tmp;
+			continue;
+		}
+		sort = sort->link;
+	}
+
+	tmp = head;
 	while(tmp!= NULL){
 		printf("\t%s\t%04X\n",tmp->symbol,tmp->loc);
 		tmp = tmp->link;
 	}
+
+	//sort_sym를 free해준다
+	free_symbol(sort_sym);	
 }
-void make_lst(){
-	
+void free_symbol(SYMBOL* node){
+	SYMBOL* temp = node;
+	SYMBOL* del;
+	while(temp != NULL){
+		del = temp;
+		temp = temp->link;
+		free(del);
+	}
+}
 
-
-
-//	fclose(fp);
-
-
+void free_asm(){
+	LINE* temp = asm_head->link;
+	LINE* del;
+	while(temp != NULL){
+		del = temp;
+		temp = temp->link;
+		free(del);
+	}
+	free(asm_head);
 }
