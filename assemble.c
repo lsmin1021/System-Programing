@@ -1,3 +1,11 @@
+/*
+ * assemble.c
+ * assemble을 위한 코드
+ *
+ * 2020/04/21 v.01
+ *
+ */
+
 #include "20181666.h"
 
 char directives[6][6] =
@@ -96,8 +104,6 @@ int find_format(char* str){
 		return 0;
 	}
 	else return -1;
-
-
 }
 //asm 파일에서 한 줄씩 가져와 처리
 int manage_line(char* line,int lineCnt, int* loc){
@@ -521,32 +527,40 @@ int manage_line(char* line,int lineCnt, int* loc){
 
 	return 1;
 }
-//asm 파일을 읽어 링크드 리스트로 저장
+/*
+ * asm 파일을 읽어 링크드 리스트로 저장
+ * assemble 에러 발생 시 -1 return
+ * 파일이 없는 경우 -2 return
+ * 제대로 실행 된 경우 1 return
+ *
+ */
 int read_file(char* filename){
 
 	FILE *assem = fopen(filename, "r");
-	
-	
+
+	asm_head = NULL;
 	if (assem == NULL){
-		printf("error! There is no %s\n", filename);
-		return -1;
+		printf("error! There is no %s!\n", filename);
+		return -2;
+	}
+
+	char valid_type[30];
+	strncpy(valid_type, filename+(strlen(filename)-4), 4);
+	if(strcmp(valid_type, ".asm") != 0){
+		printf("error! %s is not asm file!\n",filename);
+		fclose(assem);
+		return -2;
 	}
 	//asm_head 초기화
-	
 	asm_head = (ASM*)malloc(sizeof(ASM));
-
-
 	strcpy(asm_head->name,"");
 	asm_head->start = -1;
 	asm_head->end = -1; 
 	asm_head->link = NULL;
 	asm_head->modify_cnt = 0;
-	
-
 
 	//symbol_head 초기화
 	symbol_head = NULL;
-	
 	
 	char temp[51];
 	int lineCnt = 1;
@@ -561,17 +575,12 @@ int read_file(char* filename){
 		else if(flag == 2){
 			break;
 		}
-
 		lineCnt++;
 		strcpy(temp, "");
 		
 	}
-
-
 	fclose(assem);
 	return 1;
-
-
 }
 //register에 해당하는 number 리턴
 int reg_num(char* reg){
@@ -597,7 +606,6 @@ int reg_num(char* reg){
 		printf("error!\n");
 		return -1;
 	}
-
 }
 //symbol에 해당하는 loc return
 int find_sym_loc(char* symbol){
@@ -609,9 +617,7 @@ int find_sym_loc(char* symbol){
 		tmp = tmp->link;
 	}
 	return -1;
-
 }
-
 //한 줄의 object code 생성해서 return
 char* line_objectcode(LINE* node){
 	char* obj; //object code 저장하는 포인터
@@ -645,13 +651,16 @@ char* line_objectcode(LINE* node){
 		sprintf(obj,"%X",node->opCode);
 	}
 	else if(format == 2){
-		//printf("@@%s, %s\n",node->operand, node->operand2);	
 		int reg1, reg2;
 		reg1 = reg_num(node->operand);
 		if(strcmp(node->operand2,"")==0)
 			reg2 = 0;
 		else
 			reg2 = reg_num(node->operand2);
+		if(reg2 == -1){ //없는 register인 경우 에러
+			printf("assembly error at %d line\n", node->line);
+			return obj;
+		}
 		sprintf(obj,"%X%X%X",node->opCode, reg1,reg2); 
 	}
 	else if(format == 3){
@@ -821,7 +830,7 @@ int make_objectcode(){
 
 		if(tmp->format != -1){//-1인 경우 object code 생성 안함
 			obj = line_objectcode(tmp);
-			if(strcmp(obj, "") == 0){ //빈 문자열 error TODO
+			if(strcmp(obj, "") == 0){ 
 				return -1;
 			}
 			if(tmp->modified == 1)
@@ -837,7 +846,7 @@ int make_objectcode(){
 		return -1;
 	return 1;
 }
-//obj 파일을 만드는 함수
+//lst 파일을 만드는 함수
 void makefile_lst(char* filename){
 	char lst_filename[30];
 	strcpy(lst_filename,"");
@@ -853,7 +862,6 @@ void makefile_lst(char* filename){
 			fprintf(fp,"%-4d\t    \t%s\n",tmp->line,tmp->comment);
 		}
 		else{
-			
 			if(strcmp(tmp->label, "")== 0)
 				strcpy(tmp->label, "    ");
 			
@@ -868,8 +876,6 @@ void makefile_lst(char* filename){
 			}
 			else if(tmp->loc != -1){
 				fprintf(fp,"%-4d\t%04X\t%-8s%-8s%-15s%s\n",tmp->line,tmp->loc,tmp->label,tmp->str,tmp->operand,tmp->obj);
-
-
 			}
 			else
 				fprintf(fp,"%-4d\t     \t%-8s%-8s%-15s%s\n",tmp->line, tmp->label, tmp->str, tmp->operand,tmp->obj);
@@ -879,6 +885,7 @@ void makefile_lst(char* filename){
 	fclose(fp);
 
 }
+//obj 파일을 만드는 함수
 void makefile_obj(char *filename){
 	char obj_filename[30];
 	strcpy(obj_filename,"");
@@ -924,9 +931,7 @@ void makefile_obj(char *filename){
 				obj_cnt = 0;
 				line_start = -1;
 			}
-
 		}
-		
 		if( strcmp(tmp->str, "END") == 0)
 			break;
 		tmp = tmp->link;
@@ -935,20 +940,16 @@ void makefile_obj(char *filename){
 		sprintf(printStr, "T%06X%02X%s",line_start, (int)(strlen(objStr)/2), objStr);
 		fprintf(fp,"%s\n",printStr);
 	}
-	
 	for(int i = 0; i < asm_head->modify_cnt; i++){
 		fprintf(fp,"M%06X%02X\n", modify[i], 5);
 	}
-	
 	if(strcmp(tmp->str, "END") == 0){
 		fprintf(fp,"E%06X\n",find_sym_loc(tmp->operand));
-
 	}
 
 	fclose(fp);	
-
 }
-
+// symbol table을 저장해주는 함수
 void save_symbol(){
 	SYMBOL *tmp, *savetmp;
 	savetmp = save_symtab;
@@ -975,7 +976,6 @@ void save_symbol(){
 			savetmp = savetmp->link;
 		}
 	}
-
 }
 /*
  * symbol 명령어 입력시 실행되는 함수로
@@ -1036,7 +1036,11 @@ void print_symbol(){
 	//sort_sym를 free해준다
 	free_symbol(sort_sym);	
 }
+//symbol table을 free 하는 함수
 void free_symbol(SYMBOL* node){
+	if(node == NULL)
+		return;
+
 	SYMBOL* temp = node;
 	SYMBOL* del;
 	while(temp != NULL){
@@ -1045,8 +1049,11 @@ void free_symbol(SYMBOL* node){
 		free(del);
 	}
 }
-
+// asm linked lst를 free 해주는 함수
 void free_asm(){
+	if(asm_head == NULL)
+		return;
+
 	LINE* temp = asm_head->link;
 	LINE* del;
 	while(temp != NULL){
@@ -1054,5 +1061,6 @@ void free_asm(){
 		temp = temp->link;
 		free(del);
 	}
-	free(asm_head);
+	if(asm_head != NULL)
+		free(asm_head);
 }

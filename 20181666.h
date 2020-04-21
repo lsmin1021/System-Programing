@@ -2,7 +2,7 @@
  * 20181666.h
  * 헤더파일
  *
- * 2020/04/04 v.01
+ * 2020/04/21 v.02
  */
 
 #include <stdio.h>
@@ -122,7 +122,6 @@ int mem_edit(char address[], char value[]);
 int mem_fill(char start[], char end[], char value[]);
 
 //assembler
-
 int is_directive(char str[]);
 int is_mnemonic(char str[]);
 int is_valid_inst(char str[]);
@@ -130,21 +129,13 @@ int find_format(char *str);
 int put_symbol(char label[], int loc);
 int manage_line(char* line, int lineCnt, int *loc);
 int read_file(char *filename);
-
 int reg_num(char* reg);
 int find_sym_loc(char* symbol);
-
 char* line_objectcode(LINE* node);
 int make_objectcode();
-
 void makefile_lst(char* filename);
 void makefile_obj(char* filename);
-
-void make_lst();
-
 void free_asm();
-
-//test function
 void free_symbol(SYMBOL* node);
 void save_symbol();
 void print_symbol();

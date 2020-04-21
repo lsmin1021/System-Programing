@@ -1,11 +1,11 @@
 /*
- * sp project 1
+ * sp project 2
  * 20181666 이승민
  *
  * 20181666.c
  * 메인 함수 및 기본 함수들
  *
- * 2020/04/04 v.01
+ * 2020/04/21 v.02
  *
  */
 
@@ -77,7 +77,6 @@ void free_history(){ //history의 linked list를 free해줌
 		temp = temp -> link;
 		free(del);
 	}
-
 }
 
 /**
@@ -194,6 +193,7 @@ void free_memory(){
 	free_hash(); //hash table free
 	free_history(); //history 내역 free
 	free_symbol(save_symtab);
+	free(modify);
 }	
 int main(void){
 	char input[50]; //사용자로 부터의 입력
@@ -205,10 +205,11 @@ int main(void){
 //	asm_head = NULL;
 	while(1){ //종료 시 까지 무한 반복
 		printf("sicsim> "); //입력 프롬프트 상태
+
 		if(fgets(input,50,stdin)==NULL){
 			break;//입력
-
 		}
+
 		if(strlen(input) == 1 || input[0] == ' ') { //엔터만 입력 시 continue
 			continue;
 		}
@@ -243,8 +244,8 @@ int main(void){
 		}
 		if(strcmp(input, "symbol") == 0){
 			if(symbol_flag == 1){
-			print_symbol();
-			valid_flag = 1;
+				print_symbol();
+				valid_flag = 1;
 			}
 			else{
 				printf("error! no symbol table\n");
@@ -302,20 +303,23 @@ int main(void){
 	
 		//assemble filename 입력 시 file을 assemble
 		if(strcmp(inArr[0], "assemble") == 0 && index == 2){
-			valid_flag = read_file(inArr[1]);
+			valid_flag = read_file(inArr[1]); //asm 파일 읽기
 			if(valid_flag == 1){
 				valid_flag = make_objectcode(); //object code 생성
 				if(valid_flag == 1){
-					makefile_lst(inArr[1]);
-					makefile_obj(inArr[1]);
-					symbol_flag = 1;
+					makefile_lst(inArr[1]); //lst 파일 생성
+					makefile_obj(inArr[1]); //obj 파일 생성
+					
 					save_symbol(); //symbol table 저장
+					symbol_flag = 1; //symbol 저장 됨
 					free_symbol(symbol_head);
-					free_asm();
+					free_asm();//할당한 linked list free
+					
 					printf("Successfully assemble %s.\n",inArr[1]);
 				}
 			}
-			else{
+			else if(valid_flag == -1){ //assemble 에러 난 경우
+				free_asm();
 				free_symbol(symbol_head);
 			}
 		}
@@ -326,9 +330,6 @@ int main(void){
 			printf("error! invalid command\n");
 
 	}
-
-	
-
 	
 	free_memory();
 	
