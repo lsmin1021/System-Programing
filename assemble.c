@@ -2,8 +2,8 @@
  * assemble.c
  * assemble을 위한 코드
  *
- * 2020/04/21 v.01
- *
+ * 2020/05/19 v.02
+ * 예외 처리
  */
 
 #include "20181666.h"
@@ -196,11 +196,78 @@ int manage_line(char* line,int lineCnt, int* loc){
 
 	}
 	else if(cnt == 2){ //label 없고 operand 하나인 경우
-		valid_flag = is_valid_inst(Arr[0]);
+		valid_flag = is_valid_inst(Arr[0]); 
 		if(valid_flag == -1){
-			printf("error! assembly error at %d line\n",new_line->line);
-			free(new_line);
-			return -1;
+			valid_flag = is_valid_inst(Arr[1]); //두번째 문자열 검사 (label있는 경우)
+			//label 처리. symbol list에 label 저장
+			
+			if(valid_flag == -1){ //두 번째 문자열도 오류인 경우 error
+				printf("error! assembly error at %d line\n",new_line->line); 
+				free(new_line); //error난 경우 free
+				return -1; //제대로 안됐으면 -1 return
+			}
+			if(strcmp(Arr[1],"START")==0 && asm_head->start == -1){ 
+				asm_head->start = hex_to_dec(Arr[2]); //맨 처음 시작 주소 저장
+				*loc = asm_head->start;//location 저장
+				new_line->loc = *loc; //START의 location은 시작주소
+				strcpy(asm_head->name, Arr[0]);
+				strcpy(new_line->label, Arr[0]);
+				strcpy(new_line->str, Arr[1]);
+				strcpy(new_line->operand, "0"); //시작 주소 없는 경우 0?
+				
+				if(asm_head->link == NULL){
+					asm_head->link = new_line;
+				}
+				return 1;
+			}
+			if(strcmp(Arr[1], "END") == 0){
+				asm_head->end = *loc; //END의 경우 location 없음
+				new_line->loc = *loc;
+				strcpy(new_line->label, Arr[0]);
+				strcpy(new_line->str, Arr[1]);
+				strcpy(new_line->operand, Arr[2]);
+
+				if(asm_head->link == NULL){
+					asm_head->link = new_line;
+				}
+				else{
+					LINE* tmp = asm_head->link;
+					while(tmp->link != NULL){
+						tmp = tmp->link;
+					}
+					tmp->link = new_line;
+				}
+
+				return 2; //END면 2 return	
+			}
+
+			if(put_symbol(Arr[0], *loc) == 1){ //symbol에러가 안나면 label 저장
+				strcpy(new_line->label,Arr[0]);
+			}
+			else{
+				printf("at %d line\n", new_line->line);
+				free(new_line); //error난 경우 free
+				return -1; //symbol이 error난 경우 -1 return
+			}
+
+			new_line->loc = *loc; //BASE가 아닌 경우 *loc
+			
+			if(valid_flag == 3){
+				if(valid_flag == 3){
+					if(find_format(Arr[0]) == 1||find_format(Arr[0]) == 2)
+						valid_flag = find_format(Arr[0]); //format에 맞게 조정
+				}
+				*loc += valid_flag;
+				new_line->format = valid_flag;
+				new_line->addressing = 1;
+				new_line->opCode = is_mnemonic(Arr[1]);
+				strcpy(new_line->str, Arr[1]);
+			}
+			else{ //format4, directives가 들어울 수는 없을 듯 
+				printf("assembly error at %d line\n", new_line->line);
+				free(new_line);
+				return -1;
+			}
 		}
 
 		if(valid_flag != 2) //BASE인 경우 loc -1
@@ -364,8 +431,6 @@ int manage_line(char* line,int lineCnt, int* loc){
 			}
 			else{
 				printf("at %d line\n", new_line->line);
-				//print_symbol();
-				//printf("===\n");
 				free(new_line); //error난 경우 free
 				return -1; //symbol이 error난 경우 -1 return
 			}
@@ -383,10 +448,23 @@ int manage_line(char* line,int lineCnt, int* loc){
 					new_line->format = 0;
 				}
 				else if(strcmp(Arr[1], "BYTE") == 0){
-					if(Arr[2][0] == 'C')
+					if(Arr[2][0] == 'C') //C인 경우
 						*loc += (strlen(Arr[2])-3); 
-					else
+					else{ //16진수인 경우
 						*loc += (strlen(Arr[2])-3)/2;
+
+						// 16진수 범위 내에 속하는지 검사
+						char hex_tmp[10];
+						strcpy(hex_tmp, "");
+						strncpy(hex_tmp, Arr[2]+2, strlen(Arr[2])-3);
+						hex_tmp[strlen(Arr[2])-3] = '\0';	
+						if(is_hex(hex_tmp) == 0){
+							printf("error! assembly error at %d line\n", new_line->line);
+							free(new_line);
+							return -1;
+						}
+					}
+
 					new_line->format = 0;
 				}
 				else if(strcmp(Arr[1], "RESW") == 0){
@@ -603,7 +681,10 @@ int reg_num(char* reg){
 	if(strcmp(reg,"SW")==0)
 		return 9;
 	else{
-		printf("error!\n");
+		if(is_hex(reg)){
+			return -2; //16진수이면 return -2
+		}
+		printf("error!\n"); 
 		return -1;
 	}
 }
@@ -630,7 +711,7 @@ char* line_objectcode(LINE* node){
 		strcpy(operand, node->operand);
 		if(operand[0] == 'X'){
 			for(int i=1; i<(int)strlen(operand); i++){
-				if(operand[i] != '\'')
+				if(operand[i] != '\'') // ' 가 아니면 복사
 					obj[index++] = operand[i];
 			}
 			obj[index] = '\0';
@@ -661,7 +742,16 @@ char* line_objectcode(LINE* node){
 			printf("assembly error at %d line\n", node->line);
 			return obj;
 		}
-		sprintf(obj,"%X%X%X",node->opCode, reg1,reg2); 
+		else if(reg2 == -2){ //16진수인 경우
+			if(hex_to_dec( node->operand2) <16){
+				sprintf(obj,"%X%X%s",node->opCode, reg1, node->operand2);
+			}
+			else{ //숫자 범위 벗어난 경우
+				printf("assembly error at %d line\n", node->line); 
+				return obj;
+			}
+		}
+		else sprintf(obj,"%X%X%X",node->opCode, reg1,reg2); 
 	}
 	else if(format == 3){
 		int optmp = node->opCode; //opCode 저장 변수
