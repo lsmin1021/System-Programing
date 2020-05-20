@@ -330,8 +330,18 @@ int main(void){
 			printf("error! invalid command\n");
 
 	}
-	
+
+//	make_ESTAB("proga.obj", 0, 0);
+	loader("proga.obj", "progb.obj", "progc.obj", 3);
+
+//	loader("copy.obj","","", 1);
+	printf("===========\n");
+
 	free_memory();
-	
+	breakPoint("4000");
+	breakPoint("1042");
+	breakPoint("2a");
+	breakPoint("44");
+	printBP();
 	return 0;
 }

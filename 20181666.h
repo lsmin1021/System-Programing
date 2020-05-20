@@ -90,6 +90,9 @@ SYMBOL* save_symtab;
 int symbol_flag;
 
 
+int memory[16][65536]; //메모리 배열
+
+
 //fundamental function
 int hex_to_dec(char hex[]);
 int is_hex(char hex[]);
@@ -139,3 +142,14 @@ void free_asm();
 void free_symbol(SYMBOL* node);
 void save_symbol();
 void print_symbol();
+
+
+
+//loader
+int setProgaddr(int value);
+int make_ESTAB(char* filename, int* csAddr, int index);
+int loader(char* file1, char* file2, char* file3, int cnt);
+int find_symbol_ESTAB(char *symbol);
+int file_loader(char* filename, int* csAddr, int index);
+void breakPoint(char* addr);
+void printBP();

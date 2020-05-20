@@ -14,7 +14,7 @@ ENDFIL LDA    EOF
        STA    LENGTH
        +JSUB  WRREC
        J      @RETADR
-EOF    BYTE   C'EOF'
+EOF    BYTE   X'EOF'
 RETADR RESW   1
 LENGTH RESW   1
 BUFFER RESB   4096
@@ -41,7 +41,7 @@ INPUT  BYTE   X'F1'
 .
 WRREC  CLEAR  X
        LDT    LENGTH
-BUFFER TD     OUTPUT
+WLOOP  TD     OUTPUT
        JEQ    WLOOP
        LDCH   BUFFER, X
        WD     OUTPUT

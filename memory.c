@@ -10,7 +10,6 @@
 #include "20181666.h"
 
 
-int memory[16][65536]; //메모리 배열
 int mem_addr = 0; //dump 출력 시 사용되는 address
 
 
@@ -130,6 +129,7 @@ int mem_edit(char address[], char value[]){
 		return -1;
 	}
 	if(val > hex_to_dec("FF")){
+		printf("hehe %d %s  ",val,value);
 		printf("error! value error\n");
 		return -1;
 	}
