@@ -153,3 +153,6 @@ int find_symbol_ESTAB(char *symbol);
 int file_loader(char* filename, int* csAddr, int index);
 void breakPoint(char* addr);
 void printBP();
+
+void printREG();
+int run();

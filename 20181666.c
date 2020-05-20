@@ -332,16 +332,22 @@ int main(void){
 	}
 
 //	make_ESTAB("proga.obj", 0, 0);
-	loader("proga.obj", "progb.obj", "progc.obj", 3);
+//	loader("proga.obj", "progb.obj", "progc.obj", 3);
 
-//	loader("copy.obj","","", 1);
+	loader("copy.obj","","", 1);
 	printf("===========\n");
-
-	free_memory();
-	breakPoint("4000");
-	breakPoint("1042");
+	breakPoint("3");
+	breakPoint("1046");
 	breakPoint("2a");
-	breakPoint("44");
-	printBP();
+	run();
+	run();
+	run();
+	run();
+	free_memory();
+//	breakPoint("4000");
+//	breakPoint("1042");
+//	breakPoint("2a");
+//	breakPoint("44");
+//	printBP();
 	return 0;
 }

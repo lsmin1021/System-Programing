@@ -17,6 +17,7 @@ int estabCnt = 0;
 int progLength = 0;
 
 
+int usedBP = -1;
 int *BP;
 int bpCnt = 0;
 
@@ -328,6 +329,8 @@ int loader(char* file1, char* file2, char* file3, int cnt){
 	PROGADDR = hex_to_dec("000");
 	int csAddr = PROGADDR;	
 	progLength = 0;
+	usedBP = -1;
+	BP = NULL;
 	
 	resetReg(); //프로그램 load 시 레지스터 0으로 초기화
 
@@ -351,7 +354,7 @@ int loader(char* file1, char* file2, char* file3, int cnt){
 	file_loader(file2, &csAddr, 1);
 	csAddr = csHead[2]->addr;
 	file_loader(file3, &csAddr, 2);*/
-	dump_print("0000","0100",3);
+	dump_print("0000","1080",3);
 //	dump_print("4000","4133",3);
 //
 	//load 시 regL과 PC는 각각 프로그램 길이, 시작주소로 초기화
@@ -361,7 +364,7 @@ int loader(char* file1, char* file2, char* file3, int cnt){
 	return 0;
 }
 
-
+//addr에 breakpoint 설정
 void breakPoint(char* addr){
 	int value;
 	value = hex_to_dec(addr); //break point 주소값
@@ -377,17 +380,317 @@ void breakPoint(char* addr){
 
 	printf("\t\t [ok] create breakpoint %s\n",addr);
 }
+// pc가 breakPoint에 해당하면 1 리턴. 아니면 0 리턴
+int isBP(int pc){
+	for(int i=0;i<bpCnt;i++){
+		if(BP[i] == pc)
+			return 1;
+	}
+	return 0;
+}
 
+//breakPoint 출력 
 void printBP(){
 	printf("\t\tbreakpoint\n\t\t----------\n");
 	for(int i=0;i<bpCnt;i++)
 		printf("\t\t%X\n", BP[i]);
 	printf("\n");
 }
+// register 목록 출력
+void printREG(){
+	printf("A : %06X\t X : %06X\n", regA, regX);
+	printf("L : %06X\tPC : %06X\n", regL, regPC);
+	printf("B : %06X\t S : %06X\n", regB, regX);
+	printf("T : %06X\n", regT);
+}
+//regNum에 해당하는 register를 value로 설정
+void setREG(int regNum, int value){
+	switch(regNum){
+		case 0: regA = value;
+				break;
+		case 1: regX = value;
+				break;
+		case 2: regL = value;
+				break;
+		case 3: regB = value;
+				break;
+		case 4: regS = value;
+				break;
+		case 5: regT = value;
+				break;
+		case 8: regPC = value;
+				break;
+		default: break;
+	}
+}
+//16진수가 음수인지 판단하는 함수. 음수면 해당 int값 리턴
+int negative_check(char* hex){
+	int cnt = 1, minus = 1;
+	while(cnt <= strlen(hex)){
+		minus *= 16;
+		cnt++;
+	}
 
+	if(hex[0] >='8' && hex[0] <= '9')
+		return hex_to_dec(hex)-minus;
+	else if(hex[0] >= 'A' && hex[0] <= 'F')
+		return hex_to_dec(hex)-minus;
+
+	else return 0;
+}
 int run(){
+	
+	char strTmp[6];
+	int format = 0, addressing = 0, opcode = 0;
+	int pcRelative, baseRelative, indexed;
+	char valueTmp[3], addrTmp[6];
+	int tmp; //메모리에서 한 바이트 값을 읽어와 저장하는 변수, 임시변수
+	int m; //계산 결과
+	int reg1, reg2; //format2에서 사용
+	int option;
+	int cursor = 0;
+	
+	int CC; // >이면 1, = 이면 0, <이면 -1
+	char disp[6]; //disp 5자리
+	char address[4]; //address 3자리
+//	printREG();
+	while(1){
+		if(regPC >= progLength) //프로그램 끝에 도달하면 종료
+			break;
+		if(isBP(regPC) && regPC != usedBP){ //breakpoint이면 종료
+			usedBP = regPC;
+			break;
+		}
+		strcpy(disp,""); //초기화
+		strcpy(address, "");
+
+		cursor = regPC;
+		tmp = memory[cursor%16][cursor/16];
+		cursor++;
+
+		opcode = tmp/4; //opcode 저장
+		opcode *= 4;
+		addressing = tmp % 4; //addressing 방식 저장
+		// 3이면 simple, 2면 indirect, 1이면 immediate, 0이면 sic(아마 format2)
+	
+		tmp = memory[cursor%16][cursor/16];
+		cursor++;
+
+		if(addressing == 0){// format 2
+			format = 2;
+			reg1 = tmp/16;
+			reg2 = tmp%16;
+		}
+		else{
+			option = tmp/16; //xbpe 값
+			indexed = option/8; //8로 나눈 값이 1이면 indexed
+			baseRelative = (option%8)/4; //baseRelative인 경우
+			pcRelative = (option%4) / 2; //pcRelative인 경우
+			format = option%2; //format 4인 경우
+		}
+		if(format == 1){ //format 4
+			//disp 구하기
+			sprintf(disp,"%X",tmp%16);
+			disp[1]='\0';
+			tmp = memory[cursor%16][cursor/16];
+			cursor++;
+			sprintf(valueTmp, "%02X", tmp);
+			valueTmp[2]='\0';
+			strcat(disp, valueTmp);
+
+			tmp = memory[cursor%16][cursor/16];
+			cursor++;
+			sprintf(valueTmp, "%02X", tmp);
+			valueTmp[2]='\0';
+			strcat(disp, valueTmp);
+		}
+		else if(format == 0){ //format 3
+			sprintf(address,"%X",tmp%16);
+			address[1] = '\0';
+			tmp = memory[cursor%16][cursor/16];
+			cursor++;
+			sprintf(valueTmp, "%02X", tmp);
+			valueTmp[2]='\0';
+			strcat(address, valueTmp);
+		}
+		regPC = cursor; //jump가 아닌 경우 다음 instruction에 pc
+	//	printf("opcode = %02X",opcode);
+		
+		if(format == 0){ //format 3
+			m = hex_to_dec(address); //address 값 m에 임시저장
+			if(pcRelative == 1){ //pcrelative인 경우  //TODO 음수인경우 고려??
+				if(negative_check(address) < 0){
+					m = negative_check(address);
+				
+				}
+				m += regPC;
+			}
+			else if(baseRelative == 1){ //base relative인 경우
+				m+= regB;
+			}
+	//		printf("m = %04X",m);
+		}
+		else if(format == 1){ //format 4
+			m = hex_to_dec(disp);
+	//		printf("m - %04X",m);
+		}
+	//	printf("\n");
+		
+		if(addressing == 2){ //indirect addressing
+			strTmp[0] = '\0';
+			for(int i = 0; i<3;i++){
+				tmp = memory[m%16][m/16];
+				m++;
+				sprintf(valueTmp, "%02X",tmp);
+				valueTmp[2] = '\0';
+				strcat(strTmp, valueTmp);
+			}
+			m = hex_to_dec(strTmp);
+		}
+
+		//instruction set 구현
+		if( opcode == hex_to_dec("14")){ //STL
+			sprintf(strTmp,"%06X",regL); //레지스터 L의 값
+//			printf("%s  %d  %04X<<\n",address, tmp, regPC);
+			for(int i=0;i<6;i+=2){
+				sprintf(addrTmp, "%X",m++);
+				strncpy(valueTmp, strTmp+i, 2);
+				valueTmp[2]='\0';
+				mem_edit(addrTmp, valueTmp);
+			}
+			
+			dump_print("0","0040",3);
+			dump_print("1030","1080",3);
+//			break;	
+		}
+		else if(opcode == hex_to_dec("68")){ //LDB
+			regB = m;
+//			break;
+		}
+		else if(opcode == hex_to_dec("48")){ //JSUB
+			regL = regPC;
+			regPC = m;
+		}
+		else if(opcode == hex_to_dec("B4")){ //CLEAR
+			setREG(reg1, 0);
+		}
+		else if(opcode == hex_to_dec("74")){ //LDT
+			if(addressing == 1){ //immediate
+				regT = m;
+			}
+		}
+		else if(opcode == hex_to_dec("E0")){ //TD
+			CC = -1; //CC 는 <
+		}
+		else if(opcode == hex_to_dec("30")){ //JEQ
+			if(CC == 0){ //CC가 =이면 jump
+				regPC = m;
+			}
+		//	break;
+		}
+		else if(opcode == hex_to_dec("D8")){ //RD
+			CC = 0; //CC가 =이라고 가정
+//			break;
+		}
+		else if(opcode == hex_to_dec("A0")){ //COMPR 그냥 넘어가기
+			CC = CC;
+//			break;
+		}
+		else if(opcode == hex_to_dec("54")){ //STCH
+		//	printf("hhe\n");
+			regA = 2143;
+			if(indexed == 1){ //x = 1
+				sprintf(strTmp,"%02X",regA%(16*16)); //레지스터 A의 값
+				sprintf(addrTmp, "%X",(m++) + regX);
+				strncpy(valueTmp, strTmp, 2);
+				valueTmp[2]='\0';
+				mem_edit(addrTmp, valueTmp);
+			}
+			break;
+		}
+		else if(opcode == hex_to_dec("10")){ //STX
+			sprintf(strTmp,"%06X",regX); //레지스터 X의 값
+//			printf("%s  %d  %04X<<\n",address, tmp, regPC);
+			for(int i=0;i<6;i+=2){
+				sprintf(addrTmp, "%X",m++);
+				strncpy(valueTmp, strTmp+i, 2);
+				valueTmp[2]='\0';
+				mem_edit(addrTmp, valueTmp);
+			}
+
+		}
+		else if(opcode == hex_to_dec("4C")){ //RSUB
+			regPC = regL;
+		}
+		else if(opcode == hex_to_dec("00")){//LDA
+			if(addressing == 1){ //immediate
+				regA = m;
+			}
+			else{
+				//m 주소에 접근하여 값 A에 넣기
+		//		printf("m = %d  %04X  ",m, m);
+				strTmp[0] = '\0';
+				for(int i = 0; i<3;i++){
+					tmp = memory[m%16][m/16];
+					m++;
+					sprintf(valueTmp, "%02X",tmp);
+					valueTmp[2] = '\0';
+					strcat(strTmp, valueTmp);
+				}
+			//	printf(">>%s  %d<<\n",strTmp, hex_to_dec(strTmp));
+				regA = hex_to_dec(strTmp);
+			}
+		}
+		else if(opcode == hex_to_dec("28")){ //COMP
+			if(addressing == 1) { //immediate addressing
+				if(regA == m) CC = 0;
+				else if(regA > m) CC = 1;
+				else CC = -1;
+			}
+		}
+		else if(opcode == hex_to_dec("0C")){ //STA
+			sprintf(strTmp,"%06X",regA); //레지스터 A의 값
+//			printf("%s  %d  %04X<<\n",address, tmp, regPC);
+			for(int i=0;i<6;i+=2){
+				sprintf(addrTmp, "%X",m++);
+				strncpy(valueTmp, strTmp+i, 2);
+				valueTmp[2]='\0';
+				mem_edit(addrTmp, valueTmp);
+			}
+
+//		break;
+
+		}
+		else if(opcode == hex_to_dec("50")){ //LDCH
+			if(indexed == 1) //index 사용하는 경우
+				m += regX;
+			tmp = memory[m%16][m/16];
+			regA -= regA%(16*16); //rightmost 바이트 지우기
+			regA += tmp; //rightmost 바이트 쓰기
+//			break;
+		}
+		else if(opcode == hex_to_dec("DC")){//WD
+			//그냥 넘어가기
+		}
+		else if(opcode == hex_to_dec("B8")){ //TIXR
+			regX += 1;
+			if(regX == reg1) CC = 0;
+			else if(regX > reg1) CC = 1;
+			else CC = -1;
+		}
+		else if(opcode == hex_to_dec("3C")){
+			regPC = m;
+		//	printf("dddd 요기%04X\n",regPC);
+		}
+//		printREG();
 
 
+	
+	}
+	printREG();
+	printf("\tStop at checkpoint[%X]\n",regPC);
+//	dump_print("0","0040",3);
+//	dump_print("1030","1080",3);
 
 
 

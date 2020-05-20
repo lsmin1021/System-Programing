@@ -666,7 +666,7 @@ int reg_num(char* reg){
 		return 0;
 	if(strcmp(reg,"X")==0)
 		return 1;
-	if(strcmp(reg,"A")==0)
+	if(strcmp(reg,"L")==0)
 		return 2;
 	if(strcmp(reg,"B")==0)
 		return 3;
