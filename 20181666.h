@@ -2,7 +2,7 @@
  * 20181666.h
  * 헤더파일
  *
- * 2020/04/21 v.02
+ * 2020/05/24 v.03
  */
 
 #include <stdio.h>
@@ -146,13 +146,25 @@ void print_symbol();
 
 
 //loader
-int setProgaddr(int value);
-int make_ESTAB(char* filename, int* csAddr, int index);
+int setProgaddr(char* value);
+int file_loader(char* filename, int csAddr, int index);
 int loader(char* file1, char* file2, char* file3, int cnt);
+int make_ESTAB(char* filename, int* csAddr, int index);
+
+int is_duplicate_ESTAB(char *symbol);
 int find_symbol_ESTAB(char *symbol);
-int file_loader(char* filename, int* csAddr, int index);
-void breakPoint(char* addr);
+void free_ESTAB();
+
+int breakPoint(char* addr);
+int isBP(int pc);
+void clearBP();
 void printBP();
 
+void resetREG();
+void setREG(int regNum, int value);
+int getREG(int regNum);
 void printREG();
+
+int negative_check(char* hex);
+
 int run();

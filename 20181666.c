@@ -1,11 +1,11 @@
 /*
- * sp project 2
+ * sp project 3 
  * 20181666 이승민
  *
  * 20181666.c
  * 메인 함수 및 기본 함수들
  *
- * 2020/04/21 v.02
+ * 2020/05/24 v.03
  *
  */
 
@@ -194,12 +194,15 @@ void free_memory(){
 	free_history(); //history 내역 free
 	free_symbol(save_symtab);
 	free(modify);
+	free_ESTAB();
+	clearBP();
 }	
 int main(void){
 	char input[50]; //사용자로 부터의 입력
-	mem_reset();
-	make_hash();
-	int valid_flag;
+	mem_reset(); //시작 시 메모리 초기화
+	make_hash(); //opcodelist 생성
+	setProgaddr("00"); //시작 시 progaddr 0x00 주소로 지정
+	int valid_flag, load_flag = 0;
 	symbol_flag = 0; //symbol이 제대로 생성되면 1
 	save_symtab = NULL;
 //	asm_head = NULL;
@@ -253,6 +256,26 @@ int main(void){
 			}
 		}
 
+		//bp clear 입력 시 breakpoint 초기화
+		if(strcmp(input, "bp clear") == 0){
+			clearBP();
+			printf("\t\t [ok] clear all breakpoints\n");
+			valid_flag = 1;
+		}
+
+		//bp 입력 시 bp 목록 출력
+		if(strcmp(input, "bp") == 0){
+			printBP();
+			valid_flag = 1;
+		}
+
+		if(strcmp(input, "run") == 0){
+			if(load_flag == 1)
+				valid_flag = run();
+			else
+				printf("error! load first\n");
+		}
+
 		//인자가 하나인 경우 history에 넣고 continue
 		if(valid_flag == 1){
 			history(input);
@@ -262,8 +285,7 @@ int main(void){
 		//인자가 여러개인 경우 처리
 		char *inArr[10] = {NULL, };
 		int index = 0;
-		char tmpinput[30];
-
+		char tmpinput[50];
 		strcpy(tmpinput, input); //tmpinput에 input값 임시 저장. history를 위해서
 		char *ptr = strtok(input," ");
 		while(ptr != NULL){
@@ -271,7 +293,6 @@ int main(void){
 			index++;
 			ptr = strtok(NULL, " ");
 		}
-	
 		//du 혹은 dump 입력 시 메로리 정보 출력
 		if(strcmp(inArr[0], "du") * strcmp(inArr[0], "dump") == 0 && index <= 3){
 			//',' 입력 안했을 경우 대비
@@ -323,7 +344,26 @@ int main(void){
 				free_symbol(symbol_head);
 			}
 		}
+
 		
+		//progaddr address 입력 시 loader 혹은 run 명령어 시작 주소 설정
+		if(strcmp(inArr[0], "progaddr") == 0 && index == 2){
+			valid_flag = setProgaddr(inArr[1]);	
+		}
+		
+		//loader objfile1 objfile2 objfile3 입력시 loader 실행
+		if(strcmp(inArr[0], "loader") == 0 && index <= 4){
+			valid_flag = loader(inArr[1], inArr[2], inArr[3], index-1); //loader 실행
+			if(valid_flag == 1)
+				load_flag = 1;
+		}
+
+		//bp address 입력 시 breakpoint 설정
+		if(strcmp(inArr[0], "bp") == 0 && index == 2){
+			valid_flag = breakPoint(inArr[1]);
+		}
+
+
 		if(valid_flag == 1) //valid한 명령어가 들어온 경우 history에 저장
 			history(tmpinput);
 		else if(valid_flag == 0) //invalid한 경우 예외 처리
@@ -331,23 +371,8 @@ int main(void){
 
 	}
 
-//	make_ESTAB("proga.obj", 0, 0);
-//	loader("proga.obj", "progb.obj", "progc.obj", 3);
 
-	loader("copy.obj","","", 1);
-	printf("===========\n");
-	breakPoint("3");
-	breakPoint("1046");
-	breakPoint("2a");
-	run();
-	run();
-	run();
-	run();
 	free_memory();
-//	breakPoint("4000");
-//	breakPoint("1042");
-//	breakPoint("2a");
-//	breakPoint("44");
-//	printBP();
+
 	return 0;
 }
